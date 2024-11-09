@@ -1,4 +1,3 @@
-
 import {markupCardGallery} from "./js/render-functions";
 import { backendData } from "./js/pixabay-api";
 import SimpleLightbox from "simplelightbox";
@@ -9,9 +8,13 @@ import "izitoast/dist/css/iziToast.min.css";
 
 const form = document.querySelector('.form');
 const gallery = document.querySelector("ul.gallery");
-
 const loader = () => document.querySelector("span").classList.toggle("loader");
-
+let searchText = "";
+const showMore = document.querySelector('.show-more');
+const perPage = 15;
+let pageCount;
+let imagesShown;
+let currentItemCounter;
 
 const lightbox = new SimpleLightbox('.gallery a', {
     caption: true,
@@ -24,7 +27,7 @@ const iziWarning = () => iziToast.show({
     message: "Input is empty!",
     position: "topRight",
     icon: 'ico-warning',
-    backgroundColor: "purple",
+    backgroundColor: "orangered",
     messageSize: "16",
     messageColor: "#fff",
     theme: "dark",
@@ -41,24 +44,67 @@ const iziError = () => iziToast.show({
     icon: "ico-error",
 });
 
-const handleForm = (event) => {
+const iziInfo = () => iziToast.info({
+    message: "We're sorry, but you've reached the end of search results.",
+    position: "topRight",
+    messageSize: "16",
+    messageColor: "#fff",
+    theme: "dark",
+    maxWidth: "350px",
+    backgroundColor: "#4e75ff",
+
+});
+
+const handleForm = async (event) => {
   event.preventDefault();
-  const searchImages = event.currentTarget.elements.imageText.value.toLowerCase().trim();
-  if (!searchImages) return iziWarning();
-  gallery.innerHTML = "";
-  loader();
-  backendData(searchImages)
-    .then(json => {
-        if(!json.hits.length) return iziError();
-        gallery.insertAdjacentHTML("beforeend", markupCardGallery
-            
-            (json.hits)
-        .join(""));
+  pageCount = 1;
+  imagesShown = perPage;
+  showMore.classList.add("hidden");
+  searchText = form.elements.searchText.value.trim()
+  if (!searchText) return iziWarning(); 
+    gallery.innerHTML = "";
+    loader();
+  
+  try {
+    const data = await backendData(searchText, perPage, pageCount);
+    if (!data.hits.length) return iziError();
+    gallery.insertAdjacentHTML("beforeend", markupCardGallery(data.hits).join(""));
+    lightbox.refresh();  
+    if (data.totalHits >= imagesShown) showMore.classList.remove("hidden");
+}   catch(error) {
+    console.error('Error handling form submission:', error);
+}
+    finally {
+        loader();
+        form.reset();
+    }
+}
+
+const showMoreImages = async() => {
+    currentItemCounter = gallery.childElementCount;
+    pageCount++;
+    imagesShown = perPage * pageCount;
+    loader();
+    showMore.classList.add("hidden");
+    try {
+        const updateData = await backendData(searchText, perPage, pageCount)
+        gallery.insertAdjacentHTML("beforeend", markupCardGallery(updateData.hits).join(""));
         lightbox.refresh();
-    })
-    .catch(e => console.log(e))
-    .finally(() => loader());
-    form.reset();
+        scrollToNewImages();
+        if (updateData.totalHits > imagesShown) showMore.classList.remove("hidden");
+    else iziInfo();
+    }
+    catch (e) {console.log(e)}
+    finally {loader()}
+};
+
+const scrollToNewImages = () => {
+    const firstNewItem = gallery.children[currentItemCounter];
+    firstNewItem.scrollIntoView({
+        behavior: 'smooth',
+        block: 'start'
+    });
 }
 
 form.addEventListener('submit', handleForm);
+showMore.addEventListener('click', showMoreImages);
