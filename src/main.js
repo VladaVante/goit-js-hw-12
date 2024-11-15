@@ -27,9 +27,9 @@ const iziWarning = () => iziToast.show({
     message: "Input is empty!",
     position: "topRight",
     icon: 'ico-warning',
-    backgroundColor: "orangered",
+    backgroundColor: "lavender",
     messageSize: "16",
-    messageColor: "#fff",
+    messageColor: "grey",
     theme: "dark",
     maxWidth: "432px",
 });
@@ -48,31 +48,34 @@ const iziInfo = () => iziToast.info({
     message: "We're sorry, but you've reached the end of search results.",
     position: "topRight",
     messageSize: "16",
-    messageColor: "#fff",
+    messageColor: "grey",
     theme: "dark",
     maxWidth: "350px",
-    backgroundColor: "#4e75ff",
+    backgroundColor: "lavender",
 
 });
 
 const handleForm = async (event) => {
-  event.preventDefault();
-  pageCount = 1;
-  imagesShown = perPage;
-  showMore.classList.add("hidden");
-  searchText = form.elements.searchText.value.trim()
-  if (!searchText) return iziWarning(); 
+event.preventDefault();
+pageCount = 1;
+imagesShown = perPage;
+showMore.classList.add("hidden");
+    searchText = form.elements.searchText.value.trim();
+if (!searchText) return iziWarning(); 
     gallery.innerHTML = "";
     loader();
-  
-  try {
+
+try {
     const data = await backendData(searchText, perPage, pageCount);
     if (!data.hits.length) return iziError();
+
+    
     gallery.insertAdjacentHTML("beforeend", markupCardGallery(data.hits).join(""));
     lightbox.refresh();  
     if (data.totalHits >= imagesShown) showMore.classList.remove("hidden");
 }   catch(error) {
     console.error('Error handling form submission:', error);
+    iziToastError("An error occurred while fetching data. Please try again later.");
 }
     finally {
         loader();
@@ -87,15 +90,18 @@ const showMoreImages = async() => {
     loader();
     showMore.classList.add("hidden");
     try {
-        const updateData = await backendData(searchText, perPage, pageCount)
+        const updateData = await backendData(searchText, perPage, pageCount);
         gallery.insertAdjacentHTML("beforeend", markupCardGallery(updateData.hits).join(""));
         lightbox.refresh();
         scrollToNewImages();
         if (updateData.totalHits > imagesShown) showMore.classList.remove("hidden");
     else iziInfo();
     }
-    catch (e) {console.log(e)}
-    finally {loader()}
+    catch (e) {
+        console.log(e);
+        iziToastError("An error occurred while loading more images. Please try again later.");
+    }
+    finally { loader(); }
 };
 
 const scrollToNewImages = () => {
@@ -105,6 +111,10 @@ const scrollToNewImages = () => {
         block: 'start'
     });
 }
+
+document.addEventListener("DOMContentLoaded", () => {
+    showMore.classList.add("hidden");
+});
 
 form.addEventListener('submit', handleForm);
 showMore.addEventListener('click', showMoreImages);
